@@ -81,7 +81,13 @@ def main_app():
         st.warning("Nenhuma loja encontrada para os filtros selecionados.")
         st.stop()
 
-    # KPI (antes da tabela)
+    
+     # Atualiza 'valor_ajustado' no DataFrame com os valores atuais dos widgets number_input
+    for index, row in df_filtrado.iterrows():
+        valor_ajustado = st.session_state.get(f"input_{index}", int(row["valor_ajustado"]))
+        df_filtrado.at[index, "valor_ajustado"] = valor_ajustado
+
+    # Calcula KPIs com os valores atualizados
     total_meta = df_filtrado["valor_atrib"].sum()
     total_ajustado = df_filtrado["valor_ajustado"].sum()
     saldo_restante = total_meta - total_ajustado
@@ -131,7 +137,6 @@ def main_app():
             step=1,
             key=f"input_{index}"
         )
-        df_filtrado.at[index, "valor_ajustado"] = valor_ajustado
 
         crescimento_mes = (valor_ajustado / row['venda_ma'] - 1) if row['venda_ma'] != 0 else 0
         crescimento_ano = (valor_ajustado / row['venda_aa'] - 1) if row['venda_aa'] != 0 else 0
@@ -139,7 +144,6 @@ def main_app():
         c6.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
         c7.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
 
-        # Linha divisória
         st.markdown("<div style='border-top: 1px solid #CCC; margin:8px 0;'></div>", unsafe_allow_html=True)
 
     # Exportar CSV
@@ -175,7 +179,6 @@ def main_app():
         mime='text/csv'
     )
 
-    # Botão salvar
     if st.button("Salvar Distribuição"):
         saldo_restante = df_filtrado["valor_atrib"].sum() - df_filtrado["valor_ajustado"].sum()
         if saldo_restante != 0:
