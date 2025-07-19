@@ -69,17 +69,22 @@ def save_distribuicao(df_filtrado):
             # Preparar dados para inserção, removendo colunas desnecessárias ou ajustando nomes
             registros_para_salvar = df_filtrado[[
                 "Loja", "venda_ma", "venda_aa", "valor_atrib", "valor_ajustado", "area", "regional"
-            ]].to_dict(orient="records")
+            ]].astype({
+                "venda_ma": float, "venda_aa": float, "valor_atrib": float, "valor_ajustado": float
+            }).to_dict(orient="records")
 
             # Inserir no Supabase
             for registro in registros_para_salvar:
                 # O Supabase pode precisar de um ID único ou de uma estratégia de upsert
-                # Para simplificar, estamos inserindo novos registros. Se for atualização, a lógica seria diferente.
-                supabase.table("metas_ajustadas").insert(registro).execute()
+                supabase.table("Metas").upsert(registro, on_conflict="Loja").execute()
             st.success("Distribuição salva no Supabase!")
             return True
         except Exception as e:
             st.error(f"Erro ao salvar distribuição no Supabase: {e}")
+            if hasattr(e, 'message'):
+                st.error(f"Detalhes do erro do Supabase: {e.message}")
+            elif hasattr(e, 'json'):
+                st.error(f"Detalhes do erro do Supabase (JSON): {e.json()}")
             return False
 
 # --- Funções de UI/Renderização --- #
@@ -109,7 +114,7 @@ def render_table_header():
 
     for col, titulo in zip(colunas, titulos):
         col.markdown(f"""
-            <div style='background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;'>
+            <div style=\'background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;\'>
             {titulo}</div>
         """, unsafe_allow_html=True)
 
@@ -117,23 +122,25 @@ def render_table_rows(df_filtrado):
     for index, row in df_filtrado.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
-        c1.markdown(f"<div style='text-align:center; padding:10px 0;'>{row['Loja']}</div>", unsafe_allow_html=True)
+        c1.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{row['Loja']}</div>", unsafe_allow_html=True)
         c2.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
         c3.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
         c4.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
 
         # Garante que o valor inicial do number_input seja um inteiro
-        valor_ajustado_inicial = int(row["valor_ajustado"])
+        # O valor do number_input deve vir do st.session_state para persistência
+        # Se não estiver no session_state, usa o valor inicial do DataFrame
+        key_loja = "input_" + str(row["Loja"])
+        current_valor_ajustado = st.session_state.get(key_loja, int(row["valor_ajustado"]))
         valor_ajustado = c5.number_input(
             label="",
             min_value=0,
-            value=valor_ajustado_inicial,
+            value=current_valor_ajustado,
             step=1,
-            key=f"input_{index}"
+            key=key_loja # Usando a chave única para persistência
         )
         # Atualiza o valor ajustado no DataFrame para cálculos subsequentes
         df_filtrado.at[index, "valor_ajustado"] = valor_ajustado
-
         crescimento_mes = calculate_growth(valor_ajustado, row['venda_ma'])
         crescimento_ano = calculate_growth(valor_ajustado, row['venda_aa'])
 
@@ -216,15 +223,7 @@ def main_app():
         st.warning("Nenhuma loja encontrada para os filtros selecionados.")
         st.stop()
 
-    # Garante que \'valor_ajustado\' no DataFrame reflita o estado atual dos number_inputs
-    # Isso é crucial porque o Streamlit recalcula o script inteiro a cada interação.
-    # Usamos st.session_state para persistir os valores dos number_inputs.
-    for index, row in df_filtrado.iterrows():
-        # A chave do session_state deve ser única por linha e por filtro, se necessário.
-        # Aqui, estamos usando o índice do DataFrame filtrado, o que funciona para este caso.
-        key = f"input_{row['id']}" if 'id' in row else f"input_{index}" # Usar um ID único da linha se disponível
-        if key in st.session_state:
-            df_filtrado.at[index, "valor_ajustado"] = st.session_state[key]
+
 
     total_meta = df_filtrado["valor_atrib"].sum()
     total_ajustado = df_filtrado["valor_ajustado"].sum()
