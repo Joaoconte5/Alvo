@@ -208,7 +208,7 @@ def main_app():
     usuario_logado = st.session_state.get("usuario_logado")
     area_usuario = st.session_state.get("area_usuario")
 
-    st.title("Sistema de Redistribuição de Metas")
+    st.title("Revisão de alvos - Áreas de coordenação")
     st.success(f"Bem-vindo, Área: {area_usuario.upper()}!")
 
     if st.button("Logout"):
