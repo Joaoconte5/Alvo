@@ -125,7 +125,7 @@ def render_kpis(total_meta, total_ajustado):
 def render_table_header():
     colunas = st.columns([3, 5, 5, 5, 5, 4, 4])
     titulos = [
-        "Loja", "Venda Projetado Julho(R$)", "Venda Ano Ant(R$)",
+        "Loja",  "Venda Ano Ant(R$)", "Venda Projetado Julho(R$)",
         "Meta Sugerida (R$)", "Valor Ajustado (R$)",
         "% Cresc. Mês Ant", "% Evol. Ano Ant"
     ]
