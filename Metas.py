@@ -25,10 +25,10 @@ supabase: Client = init_supabase_client()
 USUARIOS = {
     "master": {"senha": "admin123", "area": "master"},
     "centro": {"senha": "senha1", "area": "CENTRO"},
-    "caxias": {"senha": "senha1", "area": "CAXIAS"},
     "regional2": {"senha": "senha2", "area": "CONTINENTE"},
 }
 
+# --- Funções de Autenticação --- #
 def login():
     st.title("Sistema de Redistribuição de Metas")
     st.header("Login")
@@ -49,7 +49,8 @@ def logout():
     st.session_state.pop("area_usuario", None)
     st.rerun()
 
-@st.cache_data(ttl=600)
+# --- Funções de Dados --- #
+@st.cache_data(ttl=600) # Cache por 10 minutos
 def get_metas_data():
     try:
         resposta = supabase.table("Metas").select("*").execute()
@@ -65,13 +66,16 @@ def save_distribuicao(df_filtrado):
         return False
     else:
         try:
+            # Preparar dados para inserção, removendo colunas desnecessárias ou ajustando nomes
             registros_para_salvar = df_filtrado[[
                 "Loja", "venda_ma", "venda_aa", "valor_atrib", "valor_ajustado", "area", "regional"
             ]].astype({
                 "venda_ma": float, "venda_aa": float, "valor_atrib": float, "valor_ajustado": float
             }).to_dict(orient="records")
 
+            # Inserir no Supabase
             for registro in registros_para_salvar:
+                # O Supabase pode precisar de um ID único ou de uma estratégia de upsert
                 supabase.table("Metas").upsert(registro, on_conflict="Loja").execute()
             st.success("Distribuição salva no Supabase!")
             return True
@@ -83,13 +87,9 @@ def save_distribuicao(df_filtrado):
                 st.error(f"Detalhes do erro do Supabase (JSON): {e.json()}")
             return False
 
+# --- Funções de UI/Renderização --- #
 def format_currency(value):
-    try:
-        if pd.isna(value):
-            return "R$ 0"
-        return f"R$ {float(value):,.0f}".replace(",", ".")
-    except (ValueError, TypeError):
-        return "R$ 0"
+    return f"R$ {value:,.0f}".replace(",", ".")
 
 def calculate_growth(current, previous):
     if previous == 0:
@@ -111,27 +111,26 @@ def render_table_header():
         "Meta Sugerida (R$)", "Valor Ajustado (R$)",
         "% Cresc. Mês Ant", "% Cresc. Ano Ant"
     ]
+
     for col, titulo in zip(colunas, titulos):
         col.markdown(f"""
-            <div style='background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;'>
+            <div style=\'background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;\'>
             {titulo}</div>
         """, unsafe_allow_html=True)
 
-def safe_int(value):
+def format_currency(value):
     try:
         if pd.isna(value):
-            return 0
-        return int(float(value))
+            return "R$ 0"
+        return f"R$ {float(value):,.0f}".replace(",", ".")
     except (ValueError, TypeError):
-        return 0
+        return "R$ 0"
 
 def render_table_rows(df_filtrado):
-    colunas_numericas = ['venda_ma', 'venda_aa', 'valor_atrib', 'valor_ajustado']
-    df_filtrado[colunas_numericas] = (
-        df_filtrado[colunas_numericas]
-        .apply(pd.to_numeric, errors='coerce')
-        .fillna(0)
-    )
+    # Força as colunas a serem numéricas
+    df_filtrado['venda_ma'] = pd.to_numeric(df_filtrado['venda_ma'], errors='coerce')
+    df_filtrado['venda_aa'] = pd.to_numeric(df_filtrado['venda_aa'], errors='coerce')
+    df_filtrado['valor_atrib'] = pd.to_numeric(df_filtrado['valor_atrib'], errors='coerce')
 
     for index, row in df_filtrado.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
@@ -141,34 +140,41 @@ def render_table_rows(df_filtrado):
         c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_aa'))}</div>", unsafe_allow_html=True)
         c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('valor_atrib'))}</div>", unsafe_allow_html=True)
 
-        key_loja = f"input_{row['Loja']}"
-        current_valor_ajustado = st.session_state.get(key_loja, safe_int(row["valor_ajustado"]))
 
+        # Garante que o valor inicial do number_input seja um inteiro
+        # O valor do number_input deve vir do st.session_state para persistência
+        # Se não estiver no session_state, usa o valor inicial do DataFrame
+        key_loja = "input_" + str(row["Loja"])
+        current_valor_ajustado = st.session_state.get(key_loja, int(row["valor_ajustado"]))
         valor_ajustado = c5.number_input(
             label="",
             min_value=0,
             value=current_valor_ajustado,
             step=1,
-            key=key_loja
+            key=key_loja # Usando a chave única para persistência
         )
-
+        # Atualiza o valor ajustado no DataFrame para cálculos subsequentes
         df_filtrado.at[index, "valor_ajustado"] = valor_ajustado
         crescimento_mes = calculate_growth(valor_ajustado, row['venda_ma'])
         crescimento_ano = calculate_growth(valor_ajustado, row['venda_aa'])
 
-        c6.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
-        c7.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
+        c6.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
+        c7.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='border-top: 1px solid #CCC; margin:8px 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style=\'border-top: 1px solid #CCC; margin:8px 0;\'></div>", unsafe_allow_html=True)
 
-    return df_filtrado
+    return df_filtrado # Retorna o DataFrame atualizado
 
 def export_csv_button(df_filtrado):
     df_exportar = df_filtrado.copy()
     df_exportar["% Cresc. Mês Anterior"] = df_exportar.apply(
-        lambda row: calculate_growth(row["valor_ajustado"], row["venda_ma"]), axis=1)
+        lambda row: calculate_growth(row["valor_ajustado"], row["venda_ma"]),
+        axis=1
+    )
     df_exportar["% Cresc. Ano Anterior"] = df_exportar.apply(
-        lambda row: calculate_growth(row["valor_ajustado"], row["venda_aa"]), axis=1)
+        lambda row: calculate_growth(row["valor_ajustado"], row["venda_aa"]),
+        axis=1
+    )
 
     df_exportar_final = df_exportar[[
         "Loja", "venda_ma", "venda_aa", "valor_atrib", "valor_ajustado",
@@ -184,7 +190,7 @@ def export_csv_button(df_filtrado):
     csv = df_exportar_final.to_csv(index=False, sep=";", decimal=",").encode("utf-8")
 
     st.download_button(
-        label="📅 Baixar Tabela como CSV",
+        label="📥 Baixar Tabela como CSV",
         data=csv,
         file_name="metas_distribuidas.csv",
         mime="text/csv"
@@ -201,6 +207,7 @@ def main_app():
         logout()
 
     dados_iniciais = get_metas_data()
+
     if not dados_iniciais:
         st.warning("Nenhuma meta encontrada ou erro ao carregar dados.")
         st.stop()
@@ -230,18 +237,23 @@ def main_app():
         st.warning("Nenhuma loja encontrada para os filtros selecionados.")
         st.stop()
 
+
+
     total_meta = df_filtrado["valor_atrib"].sum()
     total_ajustado = df_filtrado["valor_ajustado"].sum()
 
     render_kpis(total_meta, total_ajustado)
     render_table_header()
-    df_filtrado = render_table_rows(df_filtrado)
+    df_filtrado = render_table_rows(df_filtrado) # Passa e recebe o DataFrame atualizado
 
     st.divider()
+
     export_csv_button(df_filtrado)
 
     if st.button("Salvar Distribuição"):
         save_distribuicao(df_filtrado)
+
+# --- Fluxo Principal da Aplicação --- #
 
 if "usuario_logado" not in st.session_state:
     login()
