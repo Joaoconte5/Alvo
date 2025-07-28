@@ -32,7 +32,7 @@ USUARIOS = {
 # --- Funções de Autenticação --- #
 # --- Funções de Autenticação --- #
 def login():
-    st.title("Sistema de Redistribuição de Metas")
+    st.title("Revisão de alvos - Áreas de coordenação")
     st.header("Login")
 
     usuario = st.text_input("Usuário")
