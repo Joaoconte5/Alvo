@@ -30,6 +30,7 @@ USUARIOS = {
 }
 
 # --- Funções de Autenticação --- #
+# --- Funções de Autenticação --- #
 def login():
     st.title("Sistema de Redistribuição de Metas")
     st.header("Login")
@@ -51,7 +52,8 @@ def logout():
     st.rerun()
 
 # --- Funções de Dados --- #
-@st.cache_data(ttl=600) # Cache por 10 minutos
+# Removendo o cache para get_metas_data para garantir que os dados sejam sempre atualizados
+# Alternativamente, poderíamos usar st.cache_data(ttl=algum_tempo) e adicionar um botão para invalidar o cache
 def get_metas_data():
     try:
         resposta = supabase.table("Metas").select("*").execute()
@@ -79,6 +81,8 @@ def save_distribuicao(df_filtrado):
                 # O Supabase pode precisar de um ID único ou de uma estratégia de upsert
                 supabase.table("Metas").upsert(registro, on_conflict="Loja").execute()
             st.success("Distribuição salva no Supabase!")
+            # Invalida o cache de dados após salvar para garantir que a próxima busca seja atualizada
+            # get_metas_data.clear()
             return True
         except Exception as e:
             st.error(f"Erro ao salvar distribuição no Supabase: {e}")
@@ -110,43 +114,32 @@ def render_table_header():
     titulos = [
         "Loja", "Venda Mês Ant(R$)", "Venda Ano Ant(R$)",
         "Meta Sugerida (R$)", "Valor Ajustado (R$)",
-        "% Cresc. Mês Ant", "% Evol. Ano Ant"
+        "% Cresc. Mês Ant", "% Cresc. Ano Ant"
     ]
 
     for col, titulo in zip(colunas, titulos):
         col.markdown(f"""
-            <div style=\'background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;\'>
+            <div style='background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;'>
             {titulo}</div>
         """, unsafe_allow_html=True)
 
-def format_currency(value):
-    try:
-        if pd.isna(value):
-            return "R$ 0"
-        return f"R$ {float(value):,.0f}".replace(",", ".")
-    except (ValueError, TypeError):
-        return "R$ 0"
-
 def render_table_rows(df_filtrado):
-    # Força as colunas a serem numéricas
-    df_filtrado['venda_ma'] = pd.to_numeric(df_filtrado['venda_ma'], errors='coerce')
-    df_filtrado['venda_aa'] = pd.to_numeric(df_filtrado['venda_aa'], errors='coerce')
-    df_filtrado['valor_atrib'] = pd.to_numeric(df_filtrado['valor_atrib'], errors='coerce')
+    # Criar uma cópia do DataFrame para armazenar os valores ajustados da sessão
+    df_para_renderizar = df_filtrado.copy()
 
-    for index, row in df_filtrado.iterrows():
+    for index, row in df_para_renderizar.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
-        c1.markdown(f"<div style='text-align:center; padding:10px 0;'>{row.get('Loja', '')}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_ma'))}</div>", unsafe_allow_html=True)
-        c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_aa'))}</div>", unsafe_allow_html=True)
-        c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('valor_atrib'))}</div>", unsafe_allow_html=True)
+        c1.markdown(f"<div style='text-align:center; padding:10px 0;'>{row['Loja']}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
+        c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
+        c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
 
-
-        # Garante que o valor inicial do number_input seja um inteiro
-        # O valor do number_input deve vir do st.session_state para persistência
-        # Se não estiver no session_state, usa o valor inicial do DataFrame
         key_loja = "input_" + str(row["Loja"])
-        current_valor_ajustado = st.session_state.get(key_loja, int(row["valor_ajustado"]))
+        # O valor inicial do number_input deve vir do st.session_state para persistência
+        # Se não estiver no session_state, usa o valor inicial do DataFrame
+        current_valor_ajustado = st.session_state.get(key_loja, int(row["valor_atrib"]))
+
         valor_ajustado = c5.number_input(
             label="",
             min_value=0,
@@ -154,17 +147,18 @@ def render_table_rows(df_filtrado):
             step=1,
             key=key_loja # Usando a chave única para persistência
         )
-        # Atualiza o valor ajustado no DataFrame para cálculos subsequentes
-        df_filtrado.at[index, "valor_ajustado"] = valor_ajustado
+        # Atualiza o valor ajustado no DataFrame de renderização para cálculos subsequentes
+        df_para_renderizar.at[index, "valor_ajustado"] = valor_ajustado
+
         crescimento_mes = calculate_growth(valor_ajustado, row['venda_ma'])
         crescimento_ano = calculate_growth(valor_ajustado, row['venda_aa'])
 
-        c6.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
-        c7.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
+        c6.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
+        c7.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
 
-        st.markdown("<div style=\'border-top: 1px solid #CCC; margin:8px 0;\'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='border-top: 1px solid #CCC; margin:8px 0;'></div>", unsafe_allow_html=True)
 
-    return df_filtrado # Retorna o DataFrame atualizado
+    return df_para_renderizar # Retorna o DataFrame atualizado com os valores da sessão
 
 def export_csv_button(df_filtrado):
     df_exportar = df_filtrado.copy()
@@ -207,6 +201,12 @@ def main_app():
     if st.button("Logout"):
         logout()
 
+    # Adicionando um botão para recarregar os dados manualmente
+    if st.button("Recarregar Dados do Supabase"):
+        # Limpa o cache de dados, se houver
+        # st.cache_data.clear()
+        st.rerun() # Força uma nova execução do script para recarregar os dados
+
     dados_iniciais = get_metas_data()
 
     if not dados_iniciais:
@@ -214,7 +214,9 @@ def main_app():
         st.stop()
 
     df = pd.DataFrame(dados_iniciais)
-    df["valor_ajustado"] = df["valor_atrib"]
+    # Inicializa 'valor_ajustado' com 'valor_atrib' ou com o valor salvo na sessão
+    # Isso garante que os valores ajustados persistam entre as reruns
+    df['valor_ajustado'] = df.apply(lambda row: st.session_state.get(f"input_{row['Loja']}", row['valor_atrib']), axis=1)
 
     if area_usuario != "master":
         df = df[df["area"] == area_usuario]
@@ -238,14 +240,14 @@ def main_app():
         st.warning("Nenhuma loja encontrada para os filtros selecionados.")
         st.stop()
 
-
-
     total_meta = df_filtrado["valor_atrib"].sum()
+    # O total_ajustado agora é calculado a partir do df_filtrado que já contém os valores da sessão
     total_ajustado = df_filtrado["valor_ajustado"].sum()
 
     render_kpis(total_meta, total_ajustado)
     render_table_header()
-    df_filtrado = render_table_rows(df_filtrado) # Passa e recebe o DataFrame atualizado
+    # render_table_rows não precisa mais retornar o df_filtrado, pois as alterações já estão no session_state
+    render_table_rows(df_filtrado) 
 
     st.divider()
 
@@ -260,3 +262,5 @@ if "usuario_logado" not in st.session_state:
     login()
 else:
     main_app()
+
+
