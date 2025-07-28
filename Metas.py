@@ -69,12 +69,15 @@ def save_distribuicao(df_filtrado):
         return False
     else:
         try:
-            # Preparar dados para inserção, removendo colunas desnecessárias ou ajustando nomes
-            registros_para_salvar = df_filtrado[[
+            # Preencher quaisquer NaN com 0 antes de converter para dicionário
+            # Isso é crucial para evitar o erro "Out of range float values are not JSON compliant: nan"
+            df_para_salvar = df_filtrado[[
                 "Loja", "venda_ma", "venda_aa", "valor_atrib", "valor_ajustado", "area", "regional"
             ]].astype({
                 "venda_ma": float, "venda_aa": float, "valor_atrib": float, "valor_ajustado": float
-            }).to_dict(orient="records")
+            }).fillna(0) # Preenche NaN com 0
+
+            registros_para_salvar = df_para_salvar.to_dict(orient="records")
 
             # Inserir no Supabase
             for registro in registros_para_salvar:
@@ -119,7 +122,7 @@ def render_table_header():
 
     for col, titulo in zip(colunas, titulos):
         col.markdown(f"""
-            <div style='background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;'>
+            <div style=\'background-color:#003366; color:white; font-weight:bold; text-align:center; display:flex; justify-content:center; align-items:center; height:60px; border-radius:4px;\'>
             {titulo}</div>
         """, unsafe_allow_html=True)
 
@@ -130,10 +133,10 @@ def render_table_rows(df_filtrado):
     for index, row in df_para_renderizar.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
-        c1.markdown(f"<div style='text-align:center; padding:10px 0;'>{row['Loja']}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
-        c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
-        c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
+        c1.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{row['Loja']}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
+        c3.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
+        c4.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
 
         key_loja = "input_" + str(row["Loja"])
         # O valor inicial do number_input deve vir do st.session_state para persistência
@@ -153,10 +156,10 @@ def render_table_rows(df_filtrado):
         crescimento_mes = calculate_growth(valor_ajustado, row['venda_ma'])
         crescimento_ano = calculate_growth(valor_ajustado, row['venda_aa'])
 
-        c6.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
-        c7.markdown(f"<div style='text-align:center; padding:10px 0;'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
+        c6.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_mes:.2%}</div>", unsafe_allow_html=True)
+        c7.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{crescimento_ano:.2%}</div>", unsafe_allow_html=True)
 
-        st.markdown("<div style='border-top: 1px solid #CCC; margin:8px 0;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style=\'border-top: 1px solid #CCC; margin:8px 0;\'></div>", unsafe_allow_html=True)
 
     return df_para_renderizar # Retorna o DataFrame atualizado com os valores da sessão
 
