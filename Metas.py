@@ -109,7 +109,7 @@ def render_table_header():
     titulos = [
         "Loja", "Venda Mês Ant(R$)", "Venda Ano Ant(R$)",
         "Meta Sugerida (R$)", "Valor Ajustado (R$)",
-        "% Cresc. Mês Ant", "% Cresc. Ano Ant"
+        "% Cresc. Mês Ant", "% Evol. Ano Ant"
     ]
 
     for col, titulo in zip(colunas, titulos):
