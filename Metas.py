@@ -125,9 +125,9 @@ def render_kpis(total_meta, total_ajustado):
 def render_table_header():
     colunas = st.columns([3, 5, 5, 5, 5, 4, 4])
     titulos = [
-        "Loja", "Venda Mês Ant(R$)", "Venda Ano Ant(R$)",
+        "Loja", "Venda Projetado Julho(R$)", "Venda Ano Ant(R$)",
         "Meta Sugerida (R$)", "Valor Ajustado (R$)",
-        "% Cresc. Mês Ant", "% Cresc. Ano Ant"
+        "% Cresc. Mês Ant", "% Evol. Ano Ant"
     ]
 
     for col, titulo in zip(colunas, titulos):
@@ -144,8 +144,8 @@ def render_table_rows(df_filtrado):
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
         c1.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{row['Loja']}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
-        c3.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
+        c3.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
         c4.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
 
         key_loja = "input_" + str(row["Loja"])
