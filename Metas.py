@@ -118,14 +118,22 @@ def render_table_header():
             {titulo}</div>
         """, unsafe_allow_html=True)
 
+def format_currency(value):
+    try:
+        if pd.isna(value):
+            return "R$ 0"
+        return f"R$ {float(value):,.0f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return "R$ 0"
+
 def render_table_rows(df_filtrado):
     for index, row in df_filtrado.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
-        c1.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{row['Loja']}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_ma'])}</div>", unsafe_allow_html=True)
-        c3.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['venda_aa'])}</div>", unsafe_allow_html=True)
-        c4.markdown(f"<div style=\'text-align:center; padding:10px 0;\'>{format_currency(row['valor_atrib'])}</div>", unsafe_allow_html=True)
+        c1.markdown(f"<div style='text-align:center; padding:10px 0;'>{row.get('Loja', '')}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_ma'))}</div>", unsafe_allow_html=True)
+        c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_aa'))}</div>", unsafe_allow_html=True)
+        c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('valor_atrib'))}</div>", unsafe_allow_html=True)
 
         # Garante que o valor inicial do number_input seja um inteiro
         # O valor do number_input deve vir do st.session_state para persistência
