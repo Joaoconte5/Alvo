@@ -105,7 +105,7 @@ def calculate_growth(current, previous):
     return (current / previous - 1)
 
 def render_kpis(total_meta, total_ajustado):
-    saldo_restante = total_meta - total_ajustado
+    saldo_restante =  total_ajustado - total_meta
     st.divider()
     col_kpi1, col_kpi2 = st.columns(2)
     col_kpi1.metric("Alvo Total R$", format_currency(total_meta))
