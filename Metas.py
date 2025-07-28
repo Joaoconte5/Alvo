@@ -127,6 +127,11 @@ def format_currency(value):
         return "R$ 0"
 
 def render_table_rows(df_filtrado):
+    # Força as colunas a serem numéricas
+    df_filtrado['venda_ma'] = pd.to_numeric(df_filtrado['venda_ma'], errors='coerce')
+    df_filtrado['venda_aa'] = pd.to_numeric(df_filtrado['venda_aa'], errors='coerce')
+    df_filtrado['valor_atrib'] = pd.to_numeric(df_filtrado['valor_atrib'], errors='coerce')
+
     for index, row in df_filtrado.iterrows():
         c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 5, 5, 5, 5, 4, 4])
 
@@ -134,6 +139,7 @@ def render_table_rows(df_filtrado):
         c2.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_ma'))}</div>", unsafe_allow_html=True)
         c3.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('venda_aa'))}</div>", unsafe_allow_html=True)
         c4.markdown(f"<div style='text-align:center; padding:10px 0;'>{format_currency(row.get('valor_atrib'))}</div>", unsafe_allow_html=True)
+
 
         # Garante que o valor inicial do number_input seja um inteiro
         # O valor do number_input deve vir do st.session_state para persistência
