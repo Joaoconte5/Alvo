@@ -262,5 +262,3 @@ if "usuario_logado" not in st.session_state:
     login()
 else:
     main_app()
-
-
