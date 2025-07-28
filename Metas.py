@@ -109,7 +109,17 @@ def render_kpis(total_meta, total_ajustado):
     st.divider()
     col_kpi1, col_kpi2 = st.columns(2)
     col_kpi1.metric("Alvo Total R$", format_currency(total_meta))
-    col_kpi2.metric("Saldo Restante", format_currency(saldo_restante))
+
+    # Estilização condicional para o Saldo Restante
+    color = "green" if saldo_restante >= 0 else "red"
+    col_kpi2.markdown(f"""
+        <div style='text-align: center;'>
+            <div style='font-size: 14px; color: grey;'>Saldo Restante</div>
+            <div style='font-size: 36px; font-weight: bold; color: {color};'>
+                {format_currency(saldo_restante)}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     st.divider()
 
 def render_table_header():
