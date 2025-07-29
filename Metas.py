@@ -24,7 +24,6 @@ supabase: Client = init_supabase_client()
 # Usuários definidos no código (idealmente, isso viria de um banco de dados ou serviço de autenticação)
 USUARIOS = {
     "master": {"senha": "admin123", "area": "master"},
-    "regional1": {"senha": "senha1", "regional": "REGIONAL 1"},
     "centro": {"senha": "senha1", "area": "CENTRO"},
     "extremosul": {"senha": "senha1", "area": "EXTREMO SUL"},
     "caxias": {"senha": "senha1", "area": "CAXIAS"},
